@@ -62,11 +62,13 @@ class Spreadsheet:
     def Select(self, row, col):
         # First again we check if row and column are within the sheet, and then setting our selection values
         if row < self.rows and col < self.cols:
-            # Here, given the self.selection variable in the assignment docx file we modify its values
-            self.selection[0] = self.cursor[0]
-            self.selection[1] = self.cursor[1]
-            self.selection[2] = row
-            self.selection[3] = col 
+                # Update the selection area correctly by finding the min and max values
+                sr, sc = self.cursor[0], self.cursor[1]
+                er, ec = row, col
+                self.selection[0] = min(sr, er)
+                self.selection[1] = min(sc, ec)
+                self.selection[2] = max(sr, er)
+                self.selection[3] = max(sc, ec)
         else:
             print("Invalid row or column.")
 
@@ -121,7 +123,7 @@ class Spreadsheet:
 
             if count > 0:
                 avg = totl/count
-                self.sheet[row][col] = avg           # Storing value at the specified target
+                self.sheet[row][col] = int(avg)           # Storing value at the specified target (int() will make the avg non decimal and save space in the sheet)
 
         else:
             print("Invalid selection.")
@@ -129,39 +131,47 @@ class Spreadsheet:
     def Max(self, row, col):
         # Modifying sum function to accomodate max
 
-        if self.selection[0] != None:
+        if self.selection[0] is not None and self.selection[2] is not None:
             maxv = None
 
-            ur,uc,lr,lc = self.selection            # Setting values
+            ur, uc, lr, lc = (
+                min(self.selection[0], self.selection[2]),
+                min(self.selection[1], self.selection[3]),
+                max(self.selection[0], self.selection[2]),
+                max(self.selection[1], self.selection[3]),
+            )
 
-            for rows in range(ur, lr + 1):          # Calculating sum by iterating over every value in the selection
+            for rows in range(ur, lr + 1):
                 for cols in range(uc, lc + 1):
-                    if self.sheet[rows][cols] != None:
-                        if maxv is None:    #Initializing the first max value by checking for None, then 
-                            maxv = self.sheet[rows][cols]                  # Checking if value is greater than previous max
-                        elif self.sheet[rows][cols] > maxv:
+                    if self.sheet[rows][cols] is not None:
+                        if maxv is None or self.sheet[rows][cols] > maxv:
                             maxv = self.sheet[rows][cols]
 
-            self.sheet[row][col] = maxv             # Storing value at the specified target
+            self.sheet[row][col] = maxv
+            print(f"Max value is {maxv}")
         else:
             print("Invalid selection.")
 
     def PrintSheet(self):
+        # NEED TO RE-WORK 17/10/23
+
         if self.sheet is not None:
             for row in self.sheet:
                 strng = ""
                 for col in row:
                     if col is not None:
-                        strng += str(col) + " "
+                        strng += "[" + str(col) + "]"
                     else:
-                        strng += " "
+                        strng += "[ ]"
                 print(strng)
         else:
             print("No spreadsheet found.")
 
     def Quit(self):
         print("Exiting spreadsheet.")
-        sys.exit()
+        sys.exit() # Using sys library to call the exit function
+
+    # ------------------- END OF MAIN REQUIREMENTS, 17/10/23, BONUS TO BE WRITTEN AND TESTED LATER -------------
 
     def Undo(self):
         
@@ -172,19 +182,50 @@ class Spreadsheet:
         pass
 
     def Save(self, file_name):
-       
-        pass
+        try:
+            with open(file_name, 'a') as file:
+                file.write(f"{self.rows}-{self.cols}\n")
+                for row in self.sheet:
+                    for col in row:
+                        if col is not None:
+                            file.write(f"[{col}]")
+                        else:
+                            file.write("[ ]")
+                    file.write('\n')
+                    print("Spreadsheet saved to", file_name)
+                file.write("\n\n\n")
+        except FileNotFoundError:
+            pass
 
     def Load(self, file_name):
-        
-        pass
+        try:
+            with open(file_name, 'r') as file:
+                rc = file.readline().strip().split('-')
+                # initializing sheet
+                self.CreateSheet(int(rc[0]), int(rc[1]))
+                rows = int(rc[0])
+                cols = int(rc[1])
+
+                # 20/10/23 2ND PUSH, NEED TO REWORK ON LOAD AND MAX()
+                for i in range(rows):
+                    rdata = str(file.readline().strip())
+                    data = rdata.split()
+                    for j in range(cols):
+                        if data[j] == "[ ]":
+                            self.sheet[i][j] = "[ ]"
+                        else:
+                            self.sheet[i][j] = str(rdata[j])
+                print("Spreadsheet loaded.")
+        except FileNotFoundError:
+            pass
+                
 
 
 def main():
     # Create a new spreadsheet with 5 rows and 5 columns
     spreadsheet = Spreadsheet()
-    spreadsheet.CreateSheet(5, 5)
-    print("Spreadsheet created with 5 rows and 5 columns.")
+    spreadsheet.CreateSheet(6, 6)
+    print("Spreadsheet created with 6 rows and 6 columns.")
 
     # Move the cursor and insert some values
     spreadsheet.Goto(2, 2)
@@ -193,7 +234,14 @@ def main():
     spreadsheet.Insert(15)
     spreadsheet.Goto(4, 4)
     spreadsheet.Insert(20)
-
+    spreadsheet.Goto(5,5)
+    spreadsheet.Insert(344)
+    spreadsheet.Goto(1,2)
+    spreadsheet.Insert(12)
+    spreadsheet.Goto(2,3)
+    spreadsheet.Insert(23)
+    spreadsheet.Goto(3,4)
+    spreadsheet.Insert("abc")
     # Read and print values
     spreadsheet.Goto(2, 2)
     spreadsheet.ReadVal()
@@ -204,25 +252,27 @@ def main():
 
     # Create a selection rectangle and calculate the sum
     spreadsheet.Goto(2, 2)
-    spreadsheet.Select(4, 4)
-    spreadsheet.Sum(4, 4)
+    spreadsheet.Select(2, 4)
+    spreadsheet.Sum(4, 2)
     spreadsheet.Goto(5, 5)
     spreadsheet.ReadVal()
 
     # Create a new selection and calculate the average
     spreadsheet.Goto(2, 2)
     spreadsheet.Select(4, 4)
-    spreadsheet.Avg(4, 3)
+    spreadsheet.Avg(4, 1)
     spreadsheet.Goto(4, 4)
     spreadsheet.ReadVal()
 
     # Create another selection and find the maximum
     spreadsheet.Goto(2, 2)
-    spreadsheet.Select(4, 4)
-    spreadsheet.Max(4, 4)
-    spreadsheet.Goto(4, 3)
+    spreadsheet.Select(3, 5)
+    spreadsheet.Max(5, 0)
+    spreadsheet.Goto(4, 4)
     spreadsheet.ReadVal()
 
+    spreadsheet.Save("sheets.txt")
     spreadsheet.PrintSheet()
 
-main()
+s2 = Spreadsheet()
+s2.Load("sheets.txt")
