@@ -56,19 +56,18 @@ class Spreadsheet:
             return None
         else:
             value = self.sheet[self.cursor[0]][self.cursor[1]]
-            print(value)
+            print(f"The value at Position ({self.cursor[0], self.cursor[1]}) is: {value}")
             return value
 
     def Select(self, row, col):
         # First again we check if row and column are within the sheet, and then setting our selection values
         if row < self.rows and col < self.cols:
-                # Update the selection area correctly by finding the min and max values
                 sr, sc = self.cursor[0], self.cursor[1]
                 er, ec = row, col
-                self.selection[0] = min(sr, er)
-                self.selection[1] = min(sc, ec)
-                self.selection[2] = max(sr, er)
-                self.selection[3] = max(sc, ec)
+                self.selection[0] = sr
+                self.selection[1] = sc
+                self.selection[2] = er
+                self.selection[3] = ec
         else:
             print("Invalid row or column.")
 
@@ -148,7 +147,7 @@ class Spreadsheet:
                             maxv = self.sheet[rows][cols]
 
             self.sheet[row][col] = maxv
-            print(f"Max value is {maxv}")
+            print(f"Max value is {maxv} between the selected area from Pos ({self.selection[0], self.selection[1]}) and Pos ({self.selection[2], self.selection[3]})")
         else:
             print("Invalid selection.")
 
@@ -156,14 +155,19 @@ class Spreadsheet:
         # NEED TO RE-WORK 17/10/23
 
         if self.sheet is not None:
+            print("=========== SPREADSHEET ===========")
+            n = 1
             for row in self.sheet:
-                strng = ""
+                strng = f"{n} "
                 for col in row:
                     if col is not None:
-                        strng += "[" + str(col) + "]"
+                        strng += "[%-4s]" % (str(col))      # Using string formatting to make all blocks equally sized (4 digits capacity)
+        
                     else:
-                        strng += "[ ]"
+                        strng += "[%-4s]" % ("")
+                n += 1
                 print(strng)
+            print("====================================")
         else:
             print("No spreadsheet found.")
 
@@ -183,14 +187,19 @@ class Spreadsheet:
 
     def Save(self, file_name):
         try:
-            with open(file_name, 'a') as file:
-                file.write(f"{self.rows}-{self.cols}\n")
+            # Using file handling we will write a new file, this means everytime a file is saved
+            # the previous spreadsheet in that file will be overwritten
+            # we will first store the num of rows and columns of our current spreadsgeet
+            # then we'll iterate over every row's each column and store that data as it is in the file
+            # separating data by /
+            with open(file_name, 'w') as file:
+                file.write(f"{self.rows}-{self.cols}\n") 
                 for row in self.sheet:
                     for col in row:
-                        if col is not None:
-                            file.write(f"[{col}]")
+                        if col != None:
+                            file.write(f"{col}/")
                         else:
-                            file.write("[ ]")
+                            file.write("None/")
                     file.write('\n')
                     print("Spreadsheet saved to", file_name)
                 file.write("\n\n\n")
@@ -207,27 +216,40 @@ class Spreadsheet:
                 cols = int(rc[1])
 
                 # 20/10/23 2ND PUSH, NEED TO REWORK ON LOAD AND MAX()
+
+                # Using nested loops to read the data, first we'll read the rows and splitting it will convert it into list
+                # Then we'll iterate over every element of the row and fill the spreadsheet with that that element at that position
                 for i in range(rows):
-                    rdata = str(file.readline().strip())
-                    data = rdata.split()
+                    rdata = file.readline().strip().split("/")
+                    for elm in range(len(rdata)):
+                        if rdata[elm] == '':
+                            rdata.pop(elm)
                     for j in range(cols):
-                        if data[j] == "[ ]":
-                            self.sheet[i][j] = "[ ]"
+                        cdata = rdata[j]
+                        if cdata == "None":
+                            self.sheet[i][j] = None
+                        elif cdata == '':
+                            pass
                         else:
-                            self.sheet[i][j] = str(rdata[j])
-                print("Spreadsheet loaded.")
+                            self.sheet[i][j] = cdata
+                print("Spreadsheet loaded successfully.")
         except FileNotFoundError:
             pass
                 
 
 
 def main():
-    # Create a new spreadsheet with 5 rows and 5 columns
+    # creating spreadsheet w 6 rows and 6 columns
     spreadsheet = Spreadsheet()
+    
+    print("Welcome to Mamoon's python spreadsheet program")
+    print("An automated spreadsheet will be created with 6 rows and 6 columns to test every function out.")
     spreadsheet.CreateSheet(6, 6)
-    print("Spreadsheet created with 6 rows and 6 columns.")
 
-    # Move the cursor and insert some values
+    print("\n=====================================\n")
+
+    # insert some values
+    print("Inserting values")
     spreadsheet.Goto(2, 2)
     spreadsheet.Insert(10)
     spreadsheet.Goto(3, 3)
@@ -242,7 +264,11 @@ def main():
     spreadsheet.Insert(23)
     spreadsheet.Goto(3,4)
     spreadsheet.Insert("abc")
-    # Read and print values
+
+    print("\n=====================================\n")
+    print("Using readval function")
+
+    # read values
     spreadsheet.Goto(2, 2)
     spreadsheet.ReadVal()
     spreadsheet.Goto(3, 3)
@@ -250,29 +276,47 @@ def main():
     spreadsheet.Goto(4, 4)
     spreadsheet.ReadVal()
 
-    # Create a selection rectangle and calculate the sum
+    print("\n=====================================\n")
+    print("Calculating the sum of a selected area and reading the sum value which will be stored in a cell")
+    # Create a selection rectangle and use sum
     spreadsheet.Goto(2, 2)
     spreadsheet.Select(2, 4)
     spreadsheet.Sum(4, 2)
     spreadsheet.Goto(5, 5)
     spreadsheet.ReadVal()
 
-    # Create a new selection and calculate the average
+    print("\n=====================================\n")
+    print("Calculating the average of selected area and reading the value stored in a cell")
+    # Create a selection and use average
     spreadsheet.Goto(2, 2)
     spreadsheet.Select(4, 4)
     spreadsheet.Avg(4, 1)
     spreadsheet.Goto(4, 4)
     spreadsheet.ReadVal()
 
-    # Create another selection and find the maximum
-    spreadsheet.Goto(2, 2)
-    spreadsheet.Select(3, 5)
+    print("\n=====================================\n")
+    print("Finding the max value from a selected area and reading that value as it will be stored in a cell")
+    # Create another selection and finding the maximum
+    spreadsheet.Goto(2, 1)
+    spreadsheet.Select(4, 5)
     spreadsheet.Max(5, 0)
     spreadsheet.Goto(4, 4)
     spreadsheet.ReadVal()
 
+    print("\n=====================================\n")
+    print("Saving the data to a file and printing our sheet.\n")
+    # Using file handling to save sheet and printing it
     spreadsheet.Save("sheets.txt")
     spreadsheet.PrintSheet()
 
-s2 = Spreadsheet()
-s2.Load("sheets.txt")
+
+    print("\n=====================================\n")
+    # Creating another spreadsheet now! to test out file handling
+    spreadsheet2 = Spreadsheet()
+    print("Another spreadsheet has now been initialized with 0 rows and 0 columns to test out file handling, this will read the data of the previous spreadsheet saved in the file and load it in itself.")
+    spreadsheet2.Load("sheets.txt")
+    spreadsheet2.PrintSheet()
+
+main()
+
+# 21/10/23 FINAL PUSH WITH MAIN IMPLEMENTATION. UNDO/REDO WILL BE ADDED IF TIME AVAILABLE
