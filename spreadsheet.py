@@ -13,6 +13,7 @@ class Spreadsheet:
         self.cols = 0
         self.cursor = [0, 0]
         self.selection = [None, None, None, None]
+        self.prev = []
 
     def CreateSheet(self, rows, cols):
         if self.sheet != None:
@@ -31,14 +32,16 @@ class Spreadsheet:
     def Goto(self, row, col):
         # Checking if row and column are within the sheet
         if row < self.rows and col < self.cols:
-            self.cursor = [row, col]
+            self.cursor = [row-1, col-1]
         else:
             print("Invalid row or column.")
 
     def Insert(self, val):
+        # self.savePrev()
         # CHecking if input is integer, then inserting the value at the selected place in cursor by indexing to get row and column
         if type(val) is int:
             self.sheet[self.cursor[0]][self.cursor[1]] = val
+            self.savePrev()
         else:
             print("Please input an integer value.")
 
@@ -56,7 +59,7 @@ class Spreadsheet:
             return None
         else:
             value = self.sheet[self.cursor[0]][self.cursor[1]]
-            print(f"The value at Position ({self.cursor[0], self.cursor[1]}) is: {value}")
+            print(f"The value at Position ({self.cursor[0] + 1, self.cursor[1] + 1}) is: {value}")
             return value
 
     def Select(self, row, col):
@@ -78,6 +81,7 @@ class Spreadsheet:
 
     def Sum(self, row, col):
         # Checking if selection isnt empty
+        # self.savePrev()
         if self.selection[0] != None:
             totl = 0
             ur,uc,lr,lc = self.selection            # Setting values
@@ -85,13 +89,16 @@ class Spreadsheet:
                 for cols in range(uc, lc + 1):
                     if self.sheet[rows][cols] != None:
                         totl += self.sheet[rows][cols]
-            self.sheet[row][col] = totl             # Storing value at the specified target
+            self.sheet[row-1][col-1] = totl             # Storing value at the specified target
+            
+
         else:
             print("Invalid selection.")
 
 
 
     def Mul(self, row, col):
+        # self.savePrev()
         # Similar to above implementation
         if self.selection[0] != None:
             totl = 1
@@ -102,11 +109,14 @@ class Spreadsheet:
                 for cols in range(uc, lc + 1):
                     if self.sheet[rows][cols] != None:
                         totl *= self.sheet[rows][cols]
-            self.sheet[row][col] = totl             # Storing value at the specified target
+            self.sheet[row-1][col-1] = totl             # Storing value at the specified target
+            
+
         else:
             print("Invalid selection.")
 
     def Avg(self, row, col):
+        # self.savePrev()
         # Modifying the implementation of sum to calculate average
         if self.selection[0] != None:
             totl = 0
@@ -122,14 +132,15 @@ class Spreadsheet:
 
             if count > 0:
                 avg = totl/count
-                self.sheet[row][col] = int(avg)           # Storing value at the specified target (int() will make the avg non decimal and save space in the sheet)
+                self.sheet[row-1][col-1] = int(avg)           # Storing value at the specified target (int() will make the avg non decimal and save space in the sheet)
+
 
         else:
             print("Invalid selection.")
 
     def Max(self, row, col):
         # Modifying sum function to accomodate max
-
+        # self.savePrev()
         if self.selection[0] is not None and self.selection[2] is not None:
             maxv = None
 
@@ -146,7 +157,8 @@ class Spreadsheet:
                         if maxv is None or self.sheet[rows][cols] > maxv:
                             maxv = self.sheet[rows][cols]
 
-            self.sheet[row][col] = maxv
+            self.sheet[row-1][col-1] = maxv
+
             print(f"Max value is {maxv} between the selected area from Pos ({self.selection[0], self.selection[1]}) and Pos ({self.selection[2], self.selection[3]})")
         else:
             print("Invalid selection.")
@@ -177,13 +189,35 @@ class Spreadsheet:
 
     # ------------------- END OF MAIN REQUIREMENTS, 17/10/23, BONUS TO BE WRITTEN AND TESTED LATER -------------
 
+
+    # UNDO REDO AND SAVEPREV ADDED 23/10/23
+    def savePrev(self):
+        # Saving the state of the sheet before performing an action in self.prev
+        # CREATING A DEEP COPY SO IT DOES NOT MATTER IF MAIN SHEET IS CHANGED LATER
+        current = [row[:] for row in self.sheet]
+        self.prev.append(current)
+
+
     def Undo(self):
-        
-        pass
+        # From the array that I'm treating like a stack, we will pop the last available sheet before an action was performed and restore it
+        if self.prev:
+            # Removing most recent save to self.next var (This save is made after a function is called, so we have to remove it in order to access the form before that function was called)        
+            self.next = self.prev.pop()
+
+            last = self.prev.pop()
+
+            '''print("last")
+            print(last)'''
+
+            self.sheet = last
+            print("Sheet restored to its form before the last performed operation.")
 
     def Redo(self):
-       
-        pass
+        # Quite simply, like we do in undo, instead of removing the most recent save, we will print it
+        # Since that save is made AFTER the most recent function call, it will restore the function to the 'next' value
+        if self.next:
+            self.sheet = self.next
+            print("Redone, sheet restored to the form AFTER the last function call.")
 
     def Save(self, file_name):
         try:
@@ -282,7 +316,16 @@ def main():
     spreadsheet.Goto(2, 2)
     spreadsheet.Select(2, 4)
     spreadsheet.Sum(4, 2)
-    spreadsheet.Goto(5, 5)
+    spreadsheet.Goto(4, 2)
+    spreadsheet.ReadVal()
+
+    print("\n=====================================\n")
+    print("Calculating the product of a selected area and reading the product value which will be stored in a cell")
+    # Create a selection rectangle and use sum
+    spreadsheet.Goto(2, 2)
+    spreadsheet.Select(2, 4)
+    spreadsheet.Mul(4, 3)
+    spreadsheet.Goto(4, 2)
     spreadsheet.ReadVal()
 
     print("\n=====================================\n")
@@ -291,7 +334,7 @@ def main():
     spreadsheet.Goto(2, 2)
     spreadsheet.Select(4, 4)
     spreadsheet.Avg(4, 1)
-    spreadsheet.Goto(4, 4)
+    spreadsheet.Goto(4, 1)
     spreadsheet.ReadVal()
 
     print("\n=====================================\n")
@@ -299,14 +342,24 @@ def main():
     # Create another selection and finding the maximum
     spreadsheet.Goto(2, 1)
     spreadsheet.Select(4, 5)
-    spreadsheet.Max(5, 0)
-    spreadsheet.Goto(4, 4)
+    spreadsheet.Max(5, 1)
+    spreadsheet.Goto(5, 1)
     spreadsheet.ReadVal()
 
     print("\n=====================================\n")
     print("Saving the data to a file and printing our sheet.\n")
     # Using file handling to save sheet and printing it
     spreadsheet.Save("sheets.txt")
+    spreadsheet.PrintSheet()
+
+    spreadsheet.Goto(1,1)
+    spreadsheet.Insert(2)
+    spreadsheet.savePrev()
+    spreadsheet.Insert(3)
+    spreadsheet.PrintSheet()
+    spreadsheet.Undo()
+    spreadsheet.PrintSheet()
+    spreadsheet.Redo()
     spreadsheet.PrintSheet()
 
 
